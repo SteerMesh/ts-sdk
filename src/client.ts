@@ -33,6 +33,55 @@ export interface Project {
   name: string;
 }
 
+export interface PulseEvent {
+  id: string;
+  projectId: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  latencyMs?: number;
+  costUsd: number;
+  packName?: string;
+  label?: string;
+  timestamp: string;
+}
+
+export interface TrackUsageInput {
+  projectId: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  latencyMs?: number;
+  packName?: string;
+  label?: string;
+}
+
+export interface ModelSummary {
+  model: string;
+  events: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+export interface PulseSummary {
+  projectId: string;
+  totalEvents: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  byModel: ModelSummary[];
+}
+
+export interface PulseBudget {
+  projectId: string;
+  limitUsd: number;
+  spentUsd: number;
+  remainingUsd: number;
+  batteryPct: number;
+  health: 'ok' | 'warning' | 'critical';
+}
+
 export interface AuditEntry {
   time: string;
   action: string;
@@ -136,6 +185,41 @@ export class SteerMeshClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
+    });
+  }
+
+  async trackUsage(input: TrackUsageInput): Promise<PulseEvent> {
+    return this.request<PulseEvent>('/pulse/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  }
+
+  async listPulseEvents(projectId: string): Promise<PulseEvent[]> {
+    const out = await this.request<{ events: PulseEvent[] }>(
+      `/pulse/events?projectId=${encodeURIComponent(projectId)}`
+    );
+    return out.events ?? [];
+  }
+
+  async getPulseSummary(projectId: string): Promise<PulseSummary> {
+    return this.request<PulseSummary>(
+      `/pulse/summary?projectId=${encodeURIComponent(projectId)}`
+    );
+  }
+
+  async getPulseBudget(projectId: string): Promise<PulseBudget> {
+    return this.request<PulseBudget>(
+      `/pulse/budget?projectId=${encodeURIComponent(projectId)}`
+    );
+  }
+
+  async setPulseBudget(projectId: string, limitUsd: number): Promise<PulseBudget> {
+    return this.request<PulseBudget>('/pulse/budget', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, limitUsd }),
     });
   }
 }
